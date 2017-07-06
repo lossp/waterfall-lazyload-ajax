@@ -1,0 +1,216 @@
+<html>
+<head>
+<style>
+    *{
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    .wrap{
+        width: 1000px;
+        margin: 0 auto;
+    }
+    .ct-waterfall{
+        position: absolute;
+        width: 1000px;
+        margin: 0 auto;
+    }
+    ul,li{
+        list-style: none;
+    }
+    img{
+        width: 100%;
+    }
+    .item{
+        position: absolute;
+        width: 200px;
+        padding: 10px;
+        margin: 10px;
+        border: 1px solid #f1f1f1;
+        transition: all 0.7s;
+        opacity: 1;
+        background-color: white;
+    }
+    .clearfix:after{
+        content: '';
+        display: block;
+        clear: both; 
+    }
+    .header{
+        margin: 0 12px;
+    }
+    .description{
+        font-size: 12px;
+        line-height: 1.8;
+        margin: 10px 15px 0;
+        color: #777371;
+    }
+    .load{
+        visibility:hide;
+        height: 20px;
+    }
+    .hide{
+        display: none;
+    }
+
+</style>
+</head>
+<body>
+    <div class = 'wrap'>
+      <div class = 'ct-waterfall'>
+        <ul class = 'container clearfix'>          
+        <li class = 'item hide'></li>
+        </ul>
+       <div class ='load'>加载中...</div>
+      </div>
+    </div>
+</body>
+
+  <script src = 'https://cdn.bootcss.com/jquery/3.2.1/jquery.js'></script>
+  <script>
+
+var curPage = 1;
+var perPageCount = 10;
+var isDataArrive = true;
+/*
+$(window).on('scroll', function(){
+    console.log('1111')
+    isVisible()
+    function isVisible(){
+            var winH = $(window).height(),
+                scrollT = $(window).scrollTop(),
+                top = $('.load').offset().top,
+                elH = $('.load').outerHeight(true);
+
+            if(winH + scrollT > top && scrollT < top + elH){
+                console.log('visi');
+            }
+            else {
+                console.log('invisi');
+            }
+    }
+})
+*/
+
+
+
+beginToLoad();
+$(window).on('scroll', function(){
+    var clock;
+    isVisible()
+    function isVisible(){
+        var winH = $(window).height(),
+            scrollT = $(window).scrollTop(),
+            top = $('.load').offset().top;
+
+        if(top < scrollT + winH){
+            console.log('visi')
+            return true;
+        }else{
+            return false;
+        }
+
+    }
+
+    function lazyLoad(){
+        if(!isDataArrive) return;
+        if(isVisible($('.load'))){
+            beginToLoad();
+        }
+    }
+
+    if(clock){
+        clearTimeout(clock);
+    }
+    clock = setTimeout(function(){
+        lazyLoad();
+    }, 500);
+})
+
+function beginToLoad(){
+    getData(function(newsList){
+        isDataArrive = true;
+        console.log(newsList); //数据获取成功，接下来就是将数据转换成DOM节点
+        //由于新闻是一条一条的，因此将数据进行遍历，逐个将每条新闻转换成DOM节点，转换成DOM节点同时，进行瀑布流的设置
+        $.each(newsList, function(index, news){
+            var $node = getNode(news);
+            console.log(news);
+        })
+        //当所需要的数据加载完成并且转换成DOM节点的时候，进行瀑布流设置
+        WaterFall.init();
+    })
+    isDataArrive = false;
+}
+
+function getData(callback){
+    $.ajax({
+        url: "http://platform.sina.com.cn/slide/album_tech",
+        type: "get",
+        dataType: "jsonp",
+        jsonp: "jsoncallback", 
+        data: {
+            app_key: "1271687855",
+            num: perPageCount,  
+            page: curPage 
+        }
+    }).done(function(ret){
+        if( ret && ret.status && ret.status.code === "0" ){
+            callback(ret.data);
+            curPage++;
+            console.log(curPage)
+        }else{
+            console.log("Can not get access to the data");
+        }
+    })
+}
+
+function getNode(news){
+    var html = '';
+    html += '<li class = "item">';
+    html += ' <a href="'+ news.url +'" class="link"><img src="' + news.img_url + '" alt=""></a>';
+    html += ' <h4 class="header">'+ news.short_name +'</h4>';
+    html += '<p class="description">'+news.short_intro+'</p>';
+    html += '</li>';
+
+    $('.container').append($(html));
+    return $(html);
+}
+
+//瀑布流
+var WaterFall = (function(){
+    function waterfall(){
+        var $item = $('.item');
+        var cols = parseInt($('.container').width()/$item.outerWidth(true));
+        var itemWidth = $item.outerWidth(true);
+        var heightArr = []; //用来保存每个item的高度
+
+        for(var i = 0; i < cols; i++){
+            heightArr[i] = 0; //重置数组，将里面值定为0
+        }
+        //遍历对象
+        $item.each(function(){
+            var minHeight = Math.min.apply(null, heightArr); //获取数组中高度的最小值
+            var minHeightIndex = heightArr.indexOf(minHeight);//获取最小高度item的下标
+            //对每个对象进行相应的摆放
+            $(this).css({
+                top: minHeight,
+                left: itemWidth * minHeightIndex
+            })
+            //每次遍历完成之后，要对高度的最小值进行更新
+            heightArr[minHeightIndex] += $(this).outerHeight(true);
+            $('.container').height(Math.max.apply(null, heightArr));
+        })
+    }
+    function init(){
+        waterfall();
+        $(window).on('resize', function(){
+            waterfall();
+        })
+    }
+    return {
+        init: init
+    }
+})()
+
+  </script>
+</html>
